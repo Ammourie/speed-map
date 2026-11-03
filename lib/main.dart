@@ -157,6 +157,7 @@ class _SpeedMapPageState extends State<SpeedMapPage>
 
   Future<void> _openGoogleMaps() async {
     final messenger = ScaffoldMessenger.of(context);
+    final dpr = MediaQuery.of(context).devicePixelRatio;
 
     var granted = await FlutterOverlayWindow.isPermissionGranted();
     if (!granted) {
@@ -169,8 +170,10 @@ class _SpeedMapPageState extends State<SpeedMapPage>
     await _start(service: true);
     if (!await FlutterOverlayWindow.isActive()) {
       await FlutterOverlayWindow.showOverlay(
-        height: 80,
-        width: 280,
+        // Pixels (not dp) at creation. Window is taller than the card so it
+        // clears the system bar; the card sits at the top of the window.
+        height: (140 * dpr).round(),
+        width: (290 * dpr).round(),
         alignment: OverlayAlignment.bottomCenter,
         enableDrag: true,
         overlayTitle: S.current.appTitle,
@@ -619,8 +622,10 @@ class _OverlaySpeedometerState extends State<_OverlaySpeedometer> {
             : const Color(0xFFEF4444);
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Center(
+      body: Align(
+        alignment: Alignment.topCenter,
         child: Container(
+          margin: const EdgeInsets.only(top: 8),
           width: 260,
           height: 62,
           decoration: BoxDecoration(
