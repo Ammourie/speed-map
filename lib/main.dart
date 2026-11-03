@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart'
-    show FlutterOverlayWindow;
+    show FlutterOverlayWindow, OverlayAlignment;
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 
@@ -169,8 +169,9 @@ class _SpeedMapPageState extends State<SpeedMapPage>
     await _start(service: true);
     if (!await FlutterOverlayWindow.isActive()) {
       await FlutterOverlayWindow.showOverlay(
-        height: 180,
-        width: 180,
+        height: 80,
+        width: 280,
+        alignment: OverlayAlignment.bottomCenter,
         enableDrag: true,
         overlayTitle: S.current.appTitle,
         overlayContent: S.current.overlayActive,
@@ -611,72 +612,86 @@ class _OverlaySpeedometerState extends State<_OverlaySpeedometer> {
   @override
   Widget build(BuildContext context) {
     final fraction = (_speed / _gaugeMaxKmh).clamp(0.0, 1.0).toDouble();
+    final color = _speed < 60
+        ? const Color(0xFF22C55E)
+        : _speed < 100
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFFEF4444);
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Center(
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: 150,
-              height: 150,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0xE6101828),
-                boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black54)],
-              ),
-              child: TweenAnimationBuilder<double>(
-                tween: Tween<double>(end: fraction),
-                duration: const Duration(milliseconds: 900),
-                curve: Curves.easeOut,
-                builder: (context, f, _) => CustomPaint(
-                  painter: _GaugePainter(f, const Color(0x26FFFFFF), stroke: 11),
-                  child: Center(
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+        child: Container(
+          width: 260,
+          height: 62,
+          decoration: BoxDecoration(
+            color: const Color(0xF2101828),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black54)],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Stack(
+              children: [
+                Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
                       Text(
                         _speed.round().toString(),
                         style: const TextStyle(
-                          fontSize: 46,
+                          fontSize: 34,
                           fontWeight: FontWeight.w800,
-                          height: 1,
                           color: Colors.white,
                           fontFeatures: [FontFeature.tabularFigures()],
                         ),
                       ),
+                      const SizedBox(width: 6),
                       Text(
                         S.current.speedUnit,
                         style: const TextStyle(
-                            fontSize: 13, color: Color(0xB3FFFFFF)),
+                            fontSize: 14, color: Color(0xB3FFFFFF)),
                       ),
-                    ]),
+                    ],
                   ),
                 ),
-              ),
-            ),
-            Positioned(
-              top: -2,
-              right: -2,
-              child: Tooltip(
-                message: S.current.closeOverlay,
-                child: GestureDetector(
-                  onTap: () => FlutterOverlayWindow.closeOverlay(),
-                  child: Container(
-                    width: 34,
-                    height: 34,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                      boxShadow: [
-                        BoxShadow(blurRadius: 4, color: Colors.black45)
-                      ],
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(end: fraction),
+                    duration: const Duration(milliseconds: 900),
+                    curve: Curves.easeOut,
+                    builder: (context, f, _) => LinearProgressIndicator(
+                      value: f,
+                      minHeight: 4,
+                      color: color,
+                      backgroundColor: const Color(0x26FFFFFF),
                     ),
-                    child: const Icon(Icons.close,
-                        size: 20, color: Color(0xFF101828)),
                   ),
                 ),
-              ),
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Tooltip(
+                    message: S.current.closeOverlay,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => FlutterOverlayWindow.closeOverlay(),
+                      child: const SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: Icon(Icons.close,
+                            size: 16, color: Color(0xB3FFFFFF)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
