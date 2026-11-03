@@ -13,5 +13,11 @@
   "tripLabel": "Trip",
   "gpsLabel": "GPS",
   "recenter": "Recenter",
-  "resetTrip": "Reset trip"
+  "resetTrip": "Reset trip",
+  "openGoogleMaps": "Google Maps + floating speedometer",
+  "overlayPermissionNeeded": "Allow “Display over other apps” for Speed Map so the speedometer can float over Google Maps.",
+  "mapsUnavailable": "Google Maps isn't installed on this device.",
+  "overlayActive": "Floating speedometer is active",
+  "trackingNotification": "Tracking your speed",
+  "closeOverlay": "Close speedometer"
 }

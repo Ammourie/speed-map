@@ -46,6 +46,12 @@ class S {
   String get gpsLabel => Intl.message('GPS', name: 'gpsLabel', desc: '', args: []);
   String get recenter => Intl.message('Recenter', name: 'recenter', desc: '', args: []);
   String get resetTrip => Intl.message('Reset trip', name: 'resetTrip', desc: '', args: []);
+  String get openGoogleMaps => Intl.message("Google Maps + floating speedometer", name: 'openGoogleMaps', desc: '', args: []);
+  String get overlayPermissionNeeded => Intl.message("Allow “Display over other apps” for Speed Map so the speedometer can float over Google Maps.", name: 'overlayPermissionNeeded', desc: '', args: []);
+  String get mapsUnavailable => Intl.message("Google Maps isn't installed on this device.", name: 'mapsUnavailable', desc: '', args: []);
+  String get overlayActive => Intl.message("Floating speedometer is active", name: 'overlayActive', desc: '', args: []);
+  String get trackingNotification => Intl.message("Tracking your speed", name: 'trackingNotification', desc: '', args: []);
+  String get closeOverlay => Intl.message("Close speedometer", name: 'closeOverlay', desc: '', args: []);
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

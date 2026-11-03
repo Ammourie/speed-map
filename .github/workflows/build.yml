@@ -27,6 +27,10 @@ jobs:
             M=android/app/src/main/AndroidManifest.xml
             sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <application|' $M
             sed -i 's|android:label="speed_map"|android:label="Speed Map"|' $M
+            sed -i 's|<application|<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <uses-permission android:name="android.permission.WAKE_LOCK"/>\n    <application|' $M
+            sed -i 's|</application>|<service android:name="flutter.overlay.window.flutter_overlay_window.OverlayService" android:exported="false" android:foregroundServiceType="specialUse"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Floating speedometer overlay"/></service>\n    </application>|' $M
+            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 26/' android/app/build.gradle.kts 2>/dev/null || true
+            sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 26/' android/app/build.gradle 2>/dev/null || true
             flutter pub get
             dart run flutter_launcher_icons
             dart run flutter_native_splash:create
@@ -44,4 +48,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/app/outputs/flutter-apk/app-release.apk speed_map.apk
-          gh release create "v1.1.${{ github.run_number }}" speed_map.apk --repo "${{ github.repository }}" --title "Speed Map v1.1.${{ github.run_number }}" --notes "New design, custom marker, launcher icon and splash screen."
+          gh release create "v1.1.${{ github.run_number }}" speed_map.apk --repo "${{ github.repository }}" --title "Speed Map v1.1.${{ github.run_number }}" --notes "New design, custom marker, launcher icon and splash screen. Google Maps button with floating speedometer."

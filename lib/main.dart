@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show FontFeature;
 
+import 'package:android_intent_plus/android_intent.dart' show AndroidIntent;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart'
+    show FlutterOverlayWindow;
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 
@@ -50,7 +53,7 @@ class SpeedMapPage extends StatefulWidget {
 }
 
 class _SpeedMapPageState extends State<SpeedMapPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final MapController _map = MapController();
   late final AnimationController _pulse = AnimationController(
     vsync: this,
@@ -68,14 +71,16 @@ class _SpeedMapPageState extends State<SpeedMapPage>
   double _heading = 0;
   double _accuracy = 0;
   String? _error;
+  bool _overlayOn = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _start();
   }
 
-  Future<void> _start() async {
+  Future<void> _start({bool service = false}) async {
     await _sub?.cancel();
     setState(() => _error = null);
 
@@ -101,6 +106,14 @@ class _SpeedMapPageState extends State<SpeedMapPage>
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: 0,
         intervalDuration: const Duration(seconds: 1),
+        // Foreground service keeps GPS alive while Google Maps is on screen.
+        foregroundNotificationConfig: service
+            ? ForegroundNotificationConfig(
+                notificationTitle: S.current.appTitle,
+                notificationText: S.current.trackingNotification,
+                enableWakeLock: true,
+              )
+            : null,
       ),
     ).listen(_onPosition, onError: (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -116,6 +129,7 @@ class _SpeedMapPageState extends State<SpeedMapPage>
           prev.latitude, prev.longitude, p.latitude, p.longitude);
     }
     _last = p;
+    if (_overlayOn) _pushToOverlay(kmh);
     setState(() {
       _pos = ll;
       _speedKmh = kmh;
@@ -139,8 +153,79 @@ class _SpeedMapPageState extends State<SpeedMapPage>
         _maxKmh = 0;
       });
 
+  // ---- Google Maps + floating speedometer ----
+
+  Future<void> _openGoogleMaps() async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    var granted = await FlutterOverlayWindow.isPermissionGranted();
+    if (!granted) {
+      messenger.showSnackBar(
+          SnackBar(content: Text(S.current.overlayPermissionNeeded)));
+      granted = await FlutterOverlayWindow.requestPermission() ?? false;
+      if (!granted) return;
+    }
+
+    await _start(service: true);
+    if (!await FlutterOverlayWindow.isActive()) {
+      await FlutterOverlayWindow.showOverlay(
+        height: 180,
+        width: 180,
+        enableDrag: true,
+        overlayTitle: S.current.appTitle,
+        overlayContent: S.current.overlayActive,
+      );
+    }
+    _overlayOn = true;
+    _pushToOverlay(_speedKmh);
+
+    final p = _pos;
+    final uri = p == null
+        ? 'geo:0,0?q='
+        : 'geo:${p.latitude},${p.longitude}?z=17';
+    try {
+      await AndroidIntent(
+        action: 'action_view',
+        data: uri,
+        package: 'com.google.android.apps.maps',
+      ).launch();
+    } catch (_) {
+      _overlayOn = false;
+      await FlutterOverlayWindow.closeOverlay();
+      messenger.showSnackBar(
+          SnackBar(content: Text(S.current.mapsUnavailable)));
+    }
+  }
+
+  Future<void> _pushToOverlay(double kmh) async {
+    try {
+      if (await FlutterOverlayWindow.isActive()) {
+        await FlutterOverlayWindow.shareData(kmh);
+      } else {
+        await _overlayClosed();
+      }
+    } catch (_) {}
+  }
+
+  /// The user closed the floating speedometer: drop the foreground service.
+  Future<void> _overlayClosed() async {
+    if (!_overlayOn) return;
+    _overlayOn = false;
+    if (mounted) await _start();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _overlayOn) {
+      FlutterOverlayWindow.isActive().then((active) {
+        if (!active) _overlayClosed();
+      });
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sub?.cancel();
     _pulse.dispose();
     super.dispose();
@@ -352,6 +437,18 @@ class _SpeedMapPageState extends State<SpeedMapPage>
           icon: const Icon(Icons.restart_alt),
         ),
       ]),
+      const SizedBox(height: 8),
+      Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _openGoogleMaps,
+            icon: const Icon(Icons.map_outlined),
+            label: Text(S.current.openGoogleMaps),
+          ),
+        ),
+      ),
     ]);
   }
 
@@ -374,16 +471,16 @@ class _SpeedMapPageState extends State<SpeedMapPage>
 
 /// 270° speedometer arc, green -> amber -> red.
 class _GaugePainter extends CustomPainter {
-  _GaugePainter(this.fraction, this.trackColor);
+  _GaugePainter(this.fraction, this.trackColor, {this.stroke = 16});
   final double fraction;
   final Color trackColor;
+  final double stroke;
 
   static const _start = 0.75 * math.pi;
   static const _sweep = 1.5 * math.pi;
 
   @override
   void paint(Canvas canvas, Size size) {
-    const stroke = 16.0;
     final c = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2 - stroke / 2;
     final rect = Rect.fromCircle(center: c, radius: radius);
@@ -411,7 +508,9 @@ class _GaugePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GaugePainter old) =>
-      old.fraction != fraction || old.trackColor != trackColor;
+      old.fraction != fraction ||
+      old.trackColor != trackColor ||
+      old.stroke != stroke;
 }
 
 /// Pulsing position dot with a heading cone (points "up" before rotation).
@@ -455,4 +554,131 @@ class _MarkerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_MarkerPainter old) => old.t != t || old.color != color;
+}
+
+// ---------------------------------------------------------------------------
+// Floating speedometer shown over Google Maps (runs in its own Flutter engine).
+// ---------------------------------------------------------------------------
+
+@pragma('vm:entry-point')
+void overlayMain() => runApp(const _OverlayApp());
+
+class _OverlayApp extends StatelessWidget {
+  const _OverlayApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        S.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: S.delegate.supportedLocales,
+      theme: ThemeData(brightness: Brightness.dark, useMaterial3: true),
+      home: const _OverlaySpeedometer(),
+    );
+  }
+}
+
+class _OverlaySpeedometer extends StatefulWidget {
+  const _OverlaySpeedometer();
+
+  @override
+  State<_OverlaySpeedometer> createState() => _OverlaySpeedometerState();
+}
+
+class _OverlaySpeedometerState extends State<_OverlaySpeedometer> {
+  StreamSubscription<dynamic>? _sub;
+  double _speed = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = FlutterOverlayWindow.overlayListener.listen((data) {
+      if (data is num && mounted) setState(() => _speed = data.toDouble());
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fraction = (_speed / _gaugeMaxKmh).clamp(0.0, 1.0).toDouble();
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Center(
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 150,
+              height: 150,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xE6101828),
+                boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black54)],
+              ),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(end: fraction),
+                duration: const Duration(milliseconds: 900),
+                curve: Curves.easeOut,
+                builder: (context, f, _) => CustomPaint(
+                  painter: _GaugePainter(f, const Color(0x26FFFFFF), stroke: 11),
+                  child: Center(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text(
+                        _speed.round().toString(),
+                        style: const TextStyle(
+                          fontSize: 46,
+                          fontWeight: FontWeight.w800,
+                          height: 1,
+                          color: Colors.white,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      Text(
+                        S.current.speedUnit,
+                        style: const TextStyle(
+                            fontSize: 13, color: Color(0xB3FFFFFF)),
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: -2,
+              right: -2,
+              child: Tooltip(
+                message: S.current.closeOverlay,
+                child: GestureDetector(
+                  onTap: () => FlutterOverlayWindow.closeOverlay(),
+                  child: Container(
+                    width: 34,
+                    height: 34,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(blurRadius: 4, color: Colors.black45)
+                      ],
+                    ),
+                    child: const Icon(Icons.close,
+                        size: 20, color: Color(0xFF101828)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
