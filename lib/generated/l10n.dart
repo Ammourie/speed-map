@@ -34,11 +34,18 @@ class S {
 
   String get appTitle => Intl.message('Speed Map', name: 'appTitle', desc: '', args: []);
   String get speedUnit => Intl.message('km/h', name: 'speedUnit', desc: '', args: []);
+  String get distanceUnit => Intl.message('km', name: 'distanceUnit', desc: '', args: []);
+  String get meterUnit => Intl.message('m', name: 'meterUnit', desc: '', args: []);
   String get waitingForGps => Intl.message('Waiting for GPS signal…', name: 'waitingForGps', desc: '', args: []);
   String get locationServicesDisabled => Intl.message('Location services are disabled.', name: 'locationServicesDisabled', desc: '', args: []);
   String get permissionDenied => Intl.message('Location permission denied.', name: 'permissionDenied', desc: '', args: []);
   String get permissionDeniedForever => Intl.message('Location permission permanently denied. Enable it in system settings.', name: 'permissionDeniedForever', desc: '', args: []);
   String get retry => Intl.message('Retry', name: 'retry', desc: '', args: []);
+  String get maxLabel => Intl.message('Top speed', name: 'maxLabel', desc: '', args: []);
+  String get tripLabel => Intl.message('Trip', name: 'tripLabel', desc: '', args: []);
+  String get gpsLabel => Intl.message('GPS', name: 'gpsLabel', desc: '', args: []);
+  String get recenter => Intl.message('Recenter', name: 'recenter', desc: '', args: []);
+  String get resetTrip => Intl.message('Reset trip', name: 'resetTrip', desc: '', args: []);
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {
