@@ -1,0 +1,10 @@
+{
+  "@@locale": "en",
+  "appTitle": "Speed Map",
+  "speedUnit": "km/h",
+  "waitingForGps": "Waiting for GPS signal…",
+  "locationServicesDisabled": "Location services are disabled.",
+  "permissionDenied": "Location permission denied.",
+  "permissionDeniedForever": "Location permission permanently denied. Enable it in system settings.",
+  "retry": "Retry"
+}
