@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart'
-    show FlutterOverlayWindow, OverlayAlignment;
+    show FlutterOverlayWindow, OverlayPosition;
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 
@@ -72,6 +72,7 @@ class _SpeedMapPageState extends State<SpeedMapPage>
   double _accuracy = 0;
   String? _error;
   bool _overlayOn = false;
+  DateTime? _overlayShownAt;
 
   @override
   void initState() {
@@ -158,6 +159,7 @@ class _SpeedMapPageState extends State<SpeedMapPage>
   Future<void> _openGoogleMaps() async {
     final messenger = ScaffoldMessenger.of(context);
     final dpr = MediaQuery.of(context).devicePixelRatio;
+    final screenH = MediaQuery.of(context).size.height;
 
     var granted = await FlutterOverlayWindow.isPermissionGranted();
     if (!granted) {
@@ -170,18 +172,16 @@ class _SpeedMapPageState extends State<SpeedMapPage>
     await _start(service: true);
     if (!await FlutterOverlayWindow.isActive()) {
       await FlutterOverlayWindow.showOverlay(
-        // Pixels (not dp) at creation. Window is taller than the card so it
-        // clears the system bar; the card sits at the top of the window.
-        height: (140 * dpr).round(),
-        width: (290 * dpr).round(),
-        alignment: OverlayAlignment.bottomCenter,
+        // Size is read in pixels (not dp) by this plugin version.
+        height: (80 * dpr).round(),
+        width: (280 * dpr).round(),
         enableDrag: true,
         overlayTitle: S.current.appTitle,
         overlayContent: S.current.overlayActive,
       );
     }
     _overlayOn = true;
-    _pushToOverlay(_speedKmh);
+    _overlayShownAt = DateTime.now();
 
     final p = _pos;
     final uri = p == null
@@ -193,6 +193,7 @@ class _SpeedMapPageState extends State<SpeedMapPage>
         data: uri,
         package: 'com.google.android.apps.maps',
       ).launch();
+      _placeOverlayAtBottom(screenH);
     } catch (_) {
       _overlayOn = false;
       await FlutterOverlayWindow.closeOverlay();
@@ -205,10 +206,29 @@ class _SpeedMapPageState extends State<SpeedMapPage>
     try {
       if (await FlutterOverlayWindow.isActive()) {
         await FlutterOverlayWindow.shareData(kmh);
-      } else {
+      } else if (DateTime.now()
+              .difference(_overlayShownAt ?? DateTime(2000)) >
+          const Duration(seconds: 6)) {
+        // Not active any more (user tapped the close icon).
         await _overlayClosed();
       }
     } catch (_) {}
+  }
+
+  /// The overlay window starts centred; move it down so it sits near the
+  /// bottom edge. Retries because the overlay service starts asynchronously.
+  Future<void> _placeOverlayAtBottom(double screenHeightDp) async {
+    final y = (screenHeightDp / 2 - 40 - 120).round();
+    for (var i = 0; i < 8; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      try {
+        if (await FlutterOverlayWindow.moveOverlay(
+                OverlayPosition(0, y.toDouble())) ==
+            true) {
+          return;
+        }
+      } catch (_) {}
+    }
   }
 
   /// The user closed the floating speedometer: drop the foreground service.
@@ -620,12 +640,10 @@ class _OverlaySpeedometerState extends State<_OverlaySpeedometer> {
         : _speed < 100
             ? const Color(0xFFF59E0B)
             : const Color(0xFFEF4444);
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Align(
-        alignment: Alignment.topCenter,
+    return Material(
+      type: MaterialType.transparency,
+      child: Center(
         child: Container(
-          margin: const EdgeInsets.only(top: 8),
           width: 260,
           height: 62,
           decoration: BoxDecoration(
@@ -640,57 +658,50 @@ class _OverlaySpeedometerState extends State<_OverlaySpeedometer> {
                 Center(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
                         _speed.round().toString(),
                         style: const TextStyle(
                           fontSize: 34,
                           fontWeight: FontWeight.w800,
+                          height: 1.1,
                           color: Colors.white,
                           fontFeatures: [FontFeature.tabularFigures()],
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        S.current.speedUnit,
-                        style: const TextStyle(
-                            fontSize: 14, color: Color(0xB3FFFFFF)),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          S.current.speedUnit,
+                          style: const TextStyle(
+                              fontSize: 14, color: Color(0xB3FFFFFF)),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween<double>(end: fraction),
+                Align(
+                  alignment: Alignment.bottomLeft,
+                  child: AnimatedContainer(
                     duration: const Duration(milliseconds: 900),
                     curve: Curves.easeOut,
-                    builder: (context, f, _) => LinearProgressIndicator(
-                      value: f,
-                      minHeight: 4,
-                      color: color,
-                      backgroundColor: const Color(0x26FFFFFF),
-                    ),
+                    height: 4,
+                    width: 260 * fraction,
+                    color: color,
                   ),
                 ),
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: Tooltip(
-                    message: S.current.closeOverlay,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => FlutterOverlayWindow.closeOverlay(),
-                      child: const SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: Icon(Icons.close,
-                            size: 16, color: Color(0xB3FFFFFF)),
-                      ),
+                Align(
+                  alignment: Alignment.topRight,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => FlutterOverlayWindow.closeOverlay(),
+                    child: const SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: Icon(Icons.close,
+                          size: 16, color: Color(0xB3FFFFFF)),
                     ),
                   ),
                 ),
