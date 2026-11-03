@@ -19,16 +19,22 @@ jobs:
           channel: stable
       - name: Create Android project and build
         run: |
-          flutter create --org com.example --project-name speed_map --platforms android app
-          cp -r lib assets pubspec.yaml app/
-          cd app
-          M=android/app/src/main/AndroidManifest.xml
-          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <application|' $M
-          sed -i 's|android:label="speed_map"|android:label="Speed Map"|' $M
-          flutter pub get
-          dart run flutter_launcher_icons
-          dart run flutter_native_splash:create
-          flutter build apk --release
+          {
+            set -e
+            flutter create --org com.example --project-name speed_map --platforms android app
+            cp -r lib assets pubspec.yaml app/
+            cd app
+            M=android/app/src/main/AndroidManifest.xml
+            sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <application|' $M
+            sed -i 's|android:label="speed_map"|android:label="Speed Map"|' $M
+            flutter pub get
+            dart run flutter_launcher_icons
+            dart run flutter_native_splash:create
+            flutter build apk --release
+          } > "$GITHUB_WORKSPACE/build.log" 2>&1 || {
+            echo "::error title=Build failed::$(tail -n 45 "$GITHUB_WORKSPACE/build.log" | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')"
+            exit 1
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: speed_map-apk
