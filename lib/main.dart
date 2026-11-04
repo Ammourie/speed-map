@@ -69,6 +69,8 @@ class _SpeedMapPageState extends State<SpeedMapPage>
   double _speedKmh = 0;
   double _maxKmh = 0;
   double _tripMeters = 0;
+  DateTime? _tripStart;
+  Duration _tripTime = Duration.zero;
   double _heading = 0;
   double _accuracy = 0;
   String? _error;
@@ -159,6 +161,8 @@ class _SpeedMapPageState extends State<SpeedMapPage>
       _pos = ll;
       _speedKmh = kmh;
       _maxKmh = math.max(_maxKmh, kmh);
+      _tripStart ??= DateTime.now();
+      _tripTime = DateTime.now().difference(_tripStart!);
       _accuracy = p.accuracy;
       if (p.heading >= 0 && p.speed > 0.8) _heading = p.heading;
     });
@@ -176,7 +180,17 @@ class _SpeedMapPageState extends State<SpeedMapPage>
   void _resetTrip() => setState(() {
         _tripMeters = 0;
         _maxKmh = 0;
+        _tripStart = DateTime.now();
+        _tripTime = Duration.zero;
       });
+
+  String _fmtDuration(Duration d) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    final h = d.inHours;
+    final mm = two(d.inMinutes.remainder(60));
+    final ss = two(d.inSeconds.remainder(60));
+    return h > 0 ? '$h:$mm:$ss' : '$mm:$ss';
+  }
 
   // ---- Google Maps + floating speedometer ----
 
@@ -479,6 +493,9 @@ class _SpeedMapPageState extends State<SpeedMapPage>
           child: _stat(S.current.tripLabel,
               '${(_tripMeters / 1000).toStringAsFixed(2)} ${S.current.distanceUnit}'),
         ),
+        Expanded(
+          child: _stat(S.current.timeLabel, _fmtDuration(_tripTime)),
+        ),
         IconButton(
           onPressed: _resetTrip,
           tooltip: S.current.resetTrip,
@@ -508,11 +525,14 @@ class _SpeedMapPageState extends State<SpeedMapPage>
           style: t.labelMedium
               ?.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
       const SizedBox(height: 2),
-      Text(value,
-          style: t.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          )),
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(value,
+            style: t.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            )),
+      ),
     ]);
   }
 }

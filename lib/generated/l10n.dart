@@ -42,7 +42,8 @@ class S {
   String get permissionDeniedForever => Intl.message('Location permission permanently denied. Enable it in system settings.', name: 'permissionDeniedForever', desc: '', args: []);
   String get retry => Intl.message('Retry', name: 'retry', desc: '', args: []);
   String get maxLabel => Intl.message('Top speed', name: 'maxLabel', desc: '', args: []);
-  String get tripLabel => Intl.message('Trip', name: 'tripLabel', desc: '', args: []);
+  String get tripLabel => Intl.message('Distance', name: 'tripLabel', desc: '', args: []);
+  String get timeLabel => Intl.message('Trip time', name: 'timeLabel', desc: '', args: []);
   String get gpsLabel => Intl.message('GPS', name: 'gpsLabel', desc: '', args: []);
   String get recenter => Intl.message('Recenter', name: 'recenter', desc: '', args: []);
   String get resetTrip => Intl.message('Reset trip', name: 'resetTrip', desc: '', args: []);

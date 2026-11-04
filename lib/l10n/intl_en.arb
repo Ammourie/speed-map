@@ -10,7 +10,7 @@
   "permissionDeniedForever": "Location permission permanently denied. Enable it in system settings.",
   "retry": "Retry",
   "maxLabel": "Top speed",
-  "tripLabel": "Trip",
+  "tripLabel": "Distance",
   "gpsLabel": "GPS",
   "recenter": "Recenter",
   "resetTrip": "Reset trip",
@@ -19,5 +19,6 @@
   "mapsUnavailable": "Google Maps isn't installed on this device.",
   "overlayActive": "Floating speedometer is active",
   "trackingNotification": "Tracking your speed",
-  "closeOverlay": "Close speedometer"
+  "closeOverlay": "Close speedometer",
+  "timeLabel": "Trip time"
 }
