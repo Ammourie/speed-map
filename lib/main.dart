@@ -4,6 +4,7 @@ import 'dart:ui' show FontFeature;
 
 import 'package:android_intent_plus/android_intent.dart' show AndroidIntent;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart'
@@ -78,7 +79,30 @@ class _SpeedMapPageState extends State<SpeedMapPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _start();
+    _init();
+  }
+
+  static const _launchChannel = MethodChannel('speed_map/launch');
+
+  /// Starts GPS normally, or goes straight to Google Maps + overlay when the
+  /// app was opened from the home-screen widget.
+  Future<void> _init() async {
+    _launchChannel.setMethodCallHandler((call) async {
+      if (call.method == 'startOverlay' && mounted) _openGoogleMaps();
+    });
+    var fromWidget = false;
+    try {
+      fromWidget =
+          await _launchChannel.invokeMethod<bool>('consumeLaunchAction') ??
+              false;
+    } catch (_) {}
+    if (fromWidget) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openGoogleMaps();
+      });
+    } else {
+      _start();
+    }
   }
 
   Future<void> _start({bool service = false}) async {

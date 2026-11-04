@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_title">Speed Map</string>
+    <string name="widget_subtitle">Google Maps + speedometer</string>
+    <string name="widget_description">Open Google Maps with a floating speedometer</string>
+</resources>

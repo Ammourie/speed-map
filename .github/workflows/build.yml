@@ -23,12 +23,17 @@ jobs:
             set -e
             flutter create --org com.example --project-name speed_map --platforms android app
             cp -r lib assets pubspec.yaml app/
+            # Native Android bits: home-screen widget + launch-action channel
+            KDIR=$(dirname "$(find app/android -name MainActivity.kt | head -n 1)")
+            cp android_native/MainActivity.kt android_native/SpeedWidgetProvider.kt "$KDIR/"
+            cp -r android_native/res/. app/android/app/src/main/res/
             cd app
             M=android/app/src/main/AndroidManifest.xml
             sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <application|' $M
             sed -i 's|android:label="speed_map"|android:label="Speed Map"|' $M
             sed -i 's|<application|<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <uses-permission android:name="android.permission.WAKE_LOCK"/>\n    <application|' $M
             sed -i 's|</application>|<service android:name="flutter.overlay.window.flutter_overlay_window.OverlayService" android:exported="false" android:foregroundServiceType="specialUse"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Floating speedometer overlay"/></service>\n    </application>|' $M
+            sed -i 's|</application>|<receiver android:name="com.example.speed_map.SpeedWidgetProvider" android:exported="false"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/speed_widget_info"/></receiver>\n    </application>|' $M
             sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 26/' android/app/build.gradle.kts 2>/dev/null || true
             sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 26/' android/app/build.gradle 2>/dev/null || true
             flutter pub get
@@ -48,4 +53,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/app/outputs/flutter-apk/app-release.apk speed_map.apk
-          gh release create "v1.1.${{ github.run_number }}" speed_map.apk --repo "${{ github.repository }}" --title "Speed Map v1.1.${{ github.run_number }}" --notes "New design, custom marker, launcher icon and splash screen. Google Maps button with floating speedometer."
+          gh release create "v1.1.${{ github.run_number }}" speed_map.apk --repo "${{ github.repository }}" --title "Speed Map v1.1.${{ github.run_number }}" --notes "New design, custom marker, launcher icon and splash screen. Google Maps button with floating speedometer. Home-screen widget."
